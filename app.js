@@ -6,6 +6,7 @@ const ejs = require("ejs");
 const _ = require("lodash");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
+const encrypt = require("mongoose-encryption");
 const User = require("./models/user");
 
 const app = express();
