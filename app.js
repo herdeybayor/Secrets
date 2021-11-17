@@ -9,7 +9,7 @@ const https = require("https");
 const path = require("path");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
-const session = require("express-session")
+const session = require("express-session");
 const User = require("./models/user");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
@@ -73,7 +73,6 @@ passport.use(new GoogleStrategy({
         callbackURL: "https://localhost:3000/auth/google/secrets"
     },
     function (accessToken, refreshToken, profile, cb) {
-        console.log(profile);
         User.findOrCreate({
             googleId: profile.id
         }, function (err, user) {
@@ -88,7 +87,6 @@ passport.use(new FacebookStrategy({
         callbackURL: "https://localhost:3000/auth/facebook/secrets"
     },
     function (accessToken, refreshToken, profile, cb) {
-        console.log(profile);
         User.findOrCreate({
             facebookId: profile.id
         }, function (err, user) {
@@ -103,7 +101,6 @@ passport.use(new GitHubStrategy({
         callbackURL: "https://localhost:3000/auth/github/secrets"
     },
     function (accessToken, refreshToken, profile, cb) {
-        console.log(profile);
         User.findOrCreate({
             githubId: profile.id
         }, function (err, user) {
@@ -200,15 +197,43 @@ app.route("/register")
 
 app.route("/secrets")
     .get((req, res) => {
-        if (req.isAuthenticated()) {
-            res.render("secrets");
-        } else {
-            res.redirect("/login");
-        }
+        User.find({"secret": {$ne: null}})
+        .then((secrets) => {
+            console.log(secrets);
+            if (req.isAuthenticated()) {
+                res.render("secrets", {secrets: secrets});
+            } else {
+                res.redirect("/login");
+            }
+        });
     });
 
 app.route("/logout")
     .get((req, res) => {
         req.logout();
         res.redirect("/");
+    });
+
+app.route("/submit")
+    .get((req, res) => {
+        if (req.isAuthenticated()) {
+            res.render("submit");
+        } else {
+            res.redirect("/login");
+        }
+    })
+    .post((req, res) => {
+        const submittedSecret = req.body.secret;
+        console.log(req.user.id);
+        User.findById(req.user.id)
+        .then((foundUser) => {
+          foundUser.secret = submittedSecret;
+          foundUser.save()
+          .then(() => {
+            res.redirect("/secrets");
+          });
+        })
+        .catch((err) => {
+          console.log(err);
+        });
     });

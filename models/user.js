@@ -11,7 +11,8 @@ const userSchema = new Schema({
     password: String,
     googleId: String,
     facebookId: String,
-    githubId: String
+    githubId: String,
+    secret: String
 });
 
 userSchema.plugin(passportLocalMongoose);
