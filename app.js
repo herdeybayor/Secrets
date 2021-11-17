@@ -4,12 +4,17 @@
 const express = require("express");
 const ejs = require("ejs");
 const _ = require("lodash");
+const fs = require("fs");
+const https = require("https");
+const path = require("path");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
 const session = require("express-session")
 const User = require("./models/user");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const FacebookStrategy = require("passport-facebook").Strategy;
+const GitHubStrategy = require("passport-github").Strategy;
 const findOrCreate = require("mongoose-findorcreate");
 
 const app = express();
@@ -37,8 +42,13 @@ const dbURI = "mongodb://localhost:27017/userDB";
 mongoose.connect(dbURI)
     .then(() => {
         console.log("Connection to database successful");
-        app.listen(3000, () => {
-            console.log("Server started on port 3000");
+        const sslserver = https.createServer({
+            key: fs.readFileSync(path.join(__dirname, "cert", "key.pem")),
+            cert: fs.readFileSync(path.join(__dirname, "cert", "cert.pem"))
+        }, app);
+
+        sslserver.listen(3000, () => {
+            console.log("Secret app listening on port 3000! Go to https://localhost:3000/");
         });
     })
     .catch(() => {
@@ -47,25 +57,55 @@ mongoose.connect(dbURI)
 
 passport.use(User.createStrategy());
 
-passport.serializeUser(function(user, done) {
-  done(null, user.id);
+passport.serializeUser(function (user, done) {
+    done(null, user.id);
 });
 
-passport.deserializeUser(function(id, done) {
-  User.findById(id, function(err, user) {
-    done(err, user);
-  });
+passport.deserializeUser(function (id, done) {
+    User.findById(id, function (err, user) {
+        done(err, user);
+    });
 });
 
 passport.use(new GoogleStrategy({
         clientID: process.env.CLIENT_ID,
         clientSecret: process.env.CLIENT_SECRET,
-        callbackURL: "http://localhost:3000/auth/google/secrets"
+        callbackURL: "https://localhost:3000/auth/google/secrets"
     },
     function (accessToken, refreshToken, profile, cb) {
         console.log(profile);
         User.findOrCreate({
             googleId: profile.id
+        }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
+
+passport.use(new FacebookStrategy({
+        clientID: process.env.CLIENT_ID_FB,
+        clientSecret: process.env.CLIENT_SECRET_FB,
+        callbackURL: "https://localhost:3000/auth/facebook/secrets"
+    },
+    function (accessToken, refreshToken, profile, cb) {
+        console.log(profile);
+        User.findOrCreate({
+            facebookId: profile.id
+        }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
+
+passport.use(new GitHubStrategy({
+        clientID: process.env.CLIENT_ID_GITHUB,
+        clientSecret: process.env.CLIENT_SECRET_GITHUB,
+        callbackURL: "https://localhost:3000/auth/github/secrets"
+    },
+    function (accessToken, refreshToken, profile, cb) {
+        console.log(profile);
+        User.findOrCreate({
+            githubId: profile.id
         }, function (err, user) {
             return cb(err, user);
         });
@@ -90,6 +130,30 @@ app.get("/auth/google/secrets",
     function (req, res) {
         // Successful authentication, redirect home.
         res.redirect("/secrets");
+    });
+
+app.get("/auth/facebook",
+    passport.authenticate("facebook"));
+
+app.get("/auth/facebook/secrets",
+    passport.authenticate("facebook", {
+        failureRedirect: "/login"
+    }),
+    function (req, res) {
+        // Successful authentication, redirect home.
+        res.redirect("/secrets");
+    });
+
+app.get('/auth/github',
+    passport.authenticate('github'));
+
+app.get('/auth/github/secrets',
+    passport.authenticate('github', {
+        failureRedirect: '/login'
+    }),
+    function (req, res) {
+        // Successful authentication, redirect home.
+        res.redirect('/secrets');
     });
 
 app.route("/login")

@@ -9,7 +9,9 @@ const findOrCreate = require("mongoose-findorcreate");
 const userSchema = new Schema({
     email: String,
     password: String,
-    googleId: String
+    googleId: String,
+    facebookId: String,
+    githubId: String
 });
 
 userSchema.plugin(passportLocalMongoose);
